@@ -1,48 +1,78 @@
 // pages/admin/index.js
 
 import { useState } from 'react';
-import { useRouter } from 'next/router'; // Sayfayı yenilemek için
+import { useRouter } from 'next/router';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 function AdminPage({ rssKaynaklari }) {
-  const router = useRouter(); // Router hook'unu kullanıma al
+  const router = useRouter();
   const [newRssUrl, setNewRssUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Form gönderme fonksiyonunu güncelliyoruz
-  const handleFormSubmit = async (e) => {
-    e.preventDefault(); // Sayfanın yeniden yüklenmesini engelle
+  // --- YENİ EKLENEN KISIM BAŞLANGIÇ ---
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchMessage, setFetchMessage] = useState('');
+  // --- YENİ EKLENEN KISIM BİTİŞ ---
+
+  const handleAddRss = async (e) => {
+    e.preventDefault();
     setIsSubmitting(true);
     setError(null);
-
     try {
       const response = await fetch('/api/add-rss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: newRssUrl }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Bir hata oluştu.');
       }
-      
-      // Başarılı olursa input'u temizle ve sayfayı yenileyerek güncel listeyi göster
       setNewRssUrl('');
       router.reload();
-
     } catch (err) {
       setError(err.message);
       setIsSubmitting(false);
     }
   };
 
+  // --- YENİ EKLENEN FONKSİYON BAŞLANGIÇ ---
+  const handleFetchNews = async () => {
+    setIsFetching(true);
+    setFetchMessage('Haberler çekiliyor, lütfen bekleyin...');
+    try {
+      const response = await fetch('/api/fetch-news', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Haberler çekilirken bir hata oluştu.');
+      }
+      setFetchMessage(result.message); // API'den gelen başarı mesajını göster
+    } catch (err) {
+      setFetchMessage(`Hata: ${err.message}`);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+  // --- YENİ EKLENEN FONKSİYON BİTİŞ ---
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: 'auto' }}>
       <h1>Yönetim Paneli</h1>
       
+      {/* --- YENİ EKLENEN BÖLÜM BAŞLANGIÇ --- */}
+      <div style={{ border: '1px solid #28a745', padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f0fff4' }}>
+        <h2>Otomasyon</h2>
+        <button onClick={handleFetchNews} disabled={isFetching} style={{ padding: '10px 15px', fontSize: '16px', cursor: 'pointer' }}>
+          {isFetching ? 'İşlem Sürüyor...' : 'Tüm Kaynaklardan Haberleri Çek'}
+        </button>
+        {fetchMessage && <p style={{ marginTop: '10px' }}>{fetchMessage}</p>}
+      </div>
+      {/* --- YENİ EKLENEN BÖLÜM BİTİŞ --- */}
+
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
         <h2>Kayıtlı RSS Kaynakları</h2>
         {rssKaynaklari && rssKaynaklari.length > 0 ? (
@@ -58,13 +88,10 @@ function AdminPage({ rssKaynaklari }) {
 
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
         <h2>Yeni Kaynak Ekle</h2>
-        <form onSubmit={handleFormSubmit}>
+        <form onSubmit={handleAddRss}>
           <input
-            type="url"
-            value={newRssUrl}
-            onChange={(e) => setNewRssUrl(e.target.value)}
-            placeholder="https://ornek.com/rss.xml"
-            required
+            type="url" value={newRssUrl} onChange={(e) => setNewRssUrl(e.target.value)}
+            placeholder="https://ornek.com/rss.xml" required
             style={{ width: '300px', padding: '8px', marginRight: '10px' }}
           />
           <button type="submit" disabled={isSubmitting} style={{ padding: '8px 12px' }}>
@@ -77,12 +104,10 @@ function AdminPage({ rssKaynaklari }) {
   );
 }
 
-// Sunucu Tarafı Veri Çekme Fonksiyonu (Değişiklik yok)
 export async function getServerSideProps() {
   try {
     const siteRef = doc(db, 'sites', 'test-sitesi');
     const docSnap = await getDoc(siteRef);
-
     if (docSnap.exists()) {
       const data = docSnap.data();
       const rssKaynaklari = data.rssKaynaklari || [];
