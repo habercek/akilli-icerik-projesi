@@ -59,52 +59,62 @@ function ArticlesPage({ articles }) {
         });
     };
 
+    // GÜNCELLENDİ: `toast.promise` yerine manuel toast kontrolü
     const confirmDelete = () => {
         setIsDeleting(true);
-        setModal({ isOpen: false }); // Modalı kapat
+        setModal({ isOpen: false });
 
-        const promise = fetch('/api/delete-articles', {
+        const toastId = toast.loading('Seçilen makaleler siliniyor...');
+
+        fetch('/api/delete-articles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: selectedArticles }),
-        }).then(res => {
+        })
+        .then(res => {
             if (!res.ok) {
                 return res.json().then(err => { throw new Error(err.error || 'Silme sırasında bir hata oluştu.')});
             }
-            router.reload();
             return res.json();
-        });
-
-        toast.promise(promise, {
-            loading: 'Seçilen makaleler siliniyor...',
-            success: 'Makaleler başarıyla silindi!',
-            error: (err) => `Hata: ${err.message}`,
-        }).finally(() => {
+        })
+        .then(() => {
+            toast.success('Makaleler başarıyla silindi!', { id: toastId, duration: 4000 });
+            router.reload();
+        })
+        .catch((err) => {
+            toast.error(`Hata: ${err.message}`, { id: toastId });
+        })
+        .finally(() => {
             setIsDeleting(false);
             setSelectedArticles([]);
         });
     };
     
+    // GÜNCELLENDİ: `toast.promise` yerine manuel toast kontrolü
     const handleTranslate = (articleId) => {
         setTranslatingId(articleId);
+        
+        const toastId = toast.loading('Makale çevriliyor...');
 
-        const promise = fetch('/api/translate-article', {
+        fetch('/api/translate-article', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: articleId }),
-        }).then(res => {
+        })
+        .then(res => {
             if (!res.ok) {
                 return res.json().then(err => { throw new Error(err.error || 'Çeviri sırasında bir hata oluştu.')});
             }
-            router.reload();
             return res.json();
-        });
-
-        toast.promise(promise, {
-            loading: 'Makale çevriliyor...',
-            success: 'Makale başarıyla çevrildi!',
-            error: (err) => `Hata: ${err.message}`,
-        }).finally(() => {
+        })
+        .then(() => {
+            toast.success('Makale başarıyla çevrildi!', { id: toastId, duration: 4000 });
+            router.reload();
+        })
+        .catch((err) => {
+             toast.error(`Hata: ${err.message}`, { id: toastId });
+        })
+        .finally(() => {
             setTranslatingId(null);
         });
     };
@@ -113,7 +123,20 @@ function ArticlesPage({ articles }) {
 
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: 'auto' }}>
-            <Toaster position="bottom-right" />
+            {/* GÜNCELLENDİ: Toaster bileşenine stil ve süre ayarları eklendi */}
+            <Toaster 
+                position="bottom-right"
+                toastOptions={{
+                    style: {
+                        fontSize: '16px',
+                        padding: '16px',
+                        minWidth: '250px',
+                    },
+                    error: {
+                        duration: 5000, // Hata mesajları 5 saniye kalsın
+                    }
+                }}
+            />
             <ConfirmModal
                 isOpen={modal.isOpen}
                 title={modal.title}
