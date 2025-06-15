@@ -175,4 +175,15 @@ export async function getServerSideProps() {
             id: doc.id,
             title: data.title || 'Başlık Yok',
             durum: data.durum || 'Bilinmiyor',
-            eklenmeTarihi: data.eklenme
+            eklenmeTarihi: data.eklenmeTarihi.toDate().toISOString(), 
+        };
+    });
+    articles.sort((a, b) => new Date(b.eklenmeTarihi) - new Date(a.eklenmeTarihi));
+    return { props: { articles } };
+  } catch (error) {
+    console.error("Makaleleri çekerken hata:", error);
+    return { props: { articles: [] } };
+  }
+}
+
+export default ArticlesPage;
