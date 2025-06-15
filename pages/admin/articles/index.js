@@ -1,8 +1,8 @@
-// pages/admin/articles.js
+// pages/admin/articles/index.js
 
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { db } from '../../firebase';
+import { db } from '../../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 function ArticlesPage({ articles }) {
@@ -141,10 +141,9 @@ function ArticlesPage({ articles }) {
                         {translatingId === article.id ? 'Çevriliyor...' : 'Türkçeye Çevir'}
                     </button>
                   )}
-                  {/* --- YENİ EKLENEN KISIM --- */}
                   {article.durum === 'çevrildi' && (
                     <a 
-                        href={`/admin/articles/edit/${article.id}`}
+                        href={`/admin/articles/${article.id}`}
                         style={{ padding: '5px 10px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '5px', textDecoration: 'none' }}
                     >
                         İncele ve Düzenle
