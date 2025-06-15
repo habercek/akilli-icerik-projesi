@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState } from 'react'; // Formun durumunu tutmak için
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
+// Sayfa Bileşeni: Artık bir form içeriyor
 function AdminPage({ rssKaynaklari }) {
+  // Input alanına yazılan değeri saklamak için bir state tanımlıyoruz
   const [newRssUrl, setNewRssUrl] = useState('');
 
   const handleFormSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Formun sayfayı yeniden yüklemesini engelle
+    // Şimdilik burada bir işlem yapmıyoruz.
+    // Bir sonraki adımda API'ye istek göndereceğiz.
     alert(`Form gönderildi, ama henüz bir işlem yapmıyor. Gönderilen URL: ${newRssUrl}`);
-    setNewRssUrl('');
+    setNewRssUrl(''); // Input alanını temizle
   };
 
   return (
@@ -49,6 +53,7 @@ function AdminPage({ rssKaynaklari }) {
   );
 }
 
+// Sunucu Tarafı Veri Çekme Fonksiyonu (Değişiklik yok)
 export async function getServerSideProps() {
   try {
     const siteRef = doc(db, 'sites', 'test-sitesi');
