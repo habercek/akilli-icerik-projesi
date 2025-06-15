@@ -33,9 +33,36 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Makale ID veya içerik eksik.' });
     }
 
+    // --- YENİ: Sabırlı Veritabanı Okuma Mantığı ---
     const siteRef = doc(db, 'sites', 'test-sitesi');
-    const docSnap = await getDoc(siteRef);
-    if (!docSnap.exists() || !docSnap.data().gemini_keys || docSnap.data().gemini_keys.length === 0) {
+    let docSnap;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+        try {
+            docSnap = await getDoc(siteRef);
+            if (docSnap.exists()) {
+                console.log(`Attempt ${attempts + 1} successful: Firestore document fetched.`);
+                break; // Başarılı, döngüden çık
+            }
+            throw new Error("Sitelere ait ayar belgesi veritabanında bulunamadı.");
+        } catch (error) {
+            attempts++;
+            // Sadece 'client is offline' hatasında yeniden dene
+            if (error.message.includes("client is offline") && attempts < maxAttempts) {
+                console.warn(`Attempt ${attempts} failed: client is offline. Retrying in 1 second...`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 saniye bekle
+            } else {
+                // Diğer hatalarda veya maksimum deneme sayısına ulaşınca hatayı fırlat
+                throw error;
+            }
+        }
+    }
+    // --- BİTTİ: Sabırlı Veritabanı Okuma Mantığı ---
+
+
+    if (!docSnap || !docSnap.exists() || !docSnap.data().gemini_keys || docSnap.data().gemini_keys.length === 0) {
         return res.status(404).json({ error: 'Veritabanında kayıtlı Gemini API anahtarı bulunamadı.' });
     }
     const apiKeys = docSnap.data().gemini_keys;
@@ -52,7 +79,14 @@ export default async function handler(req, res) {
         
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        const text = response.text();
+        let text = response.text();
+        
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error("Yapay zeka yanıtında geçerli bir JSON bulunamadı.");
+        }
+        text = jsonMatch[0];
+
         optimizedData = JSON.parse(text);
         successfulOptimization = true;
         break; 
@@ -75,6 +109,7 @@ export default async function handler(req, res) {
     res.status(200).json({ message: 'Makale başarıyla optimize edildi.', data: optimizedData });
 
   } catch (error) {
+    console.error('Genel Optimizasyon API Hatası:', error);
     res.status(500).json({ error: `Beklenmedik bir sunucu hatası oluştu: ${error.message}` });
   }
 }
