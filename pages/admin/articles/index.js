@@ -6,7 +6,7 @@ import { db } from '../../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 
-// --- MODAL BİLEŞENİ (Onay Pencereleri İçin) ---
+// --- MODAL COMPONENT (for Confirmation Dialogs) ---
 function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
     if (!isOpen) return null;
     return (
@@ -23,16 +23,15 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
     );
 }
 
-// --- ANA SAYFA BİLEŞENİ ---
+// --- MAIN PAGE COMPONENT ---
 function ArticlesPage({ articles }) {
     const router = useRouter();
     const [selectedArticles, setSelectedArticles] = useState([]);
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false); // General processing state
     const [translatingId, setTranslatingId] = useState(null);
     const [modal, setModal] = useState({ isOpen: false });
 
-    // GÜNCELLENDİ: Performans iyileştirmesi için makaleleri bir haritaya yerleştir.
-    // Bu, makale durumlarını ararken tüm diziyi tekrar tekrar taramak yerine anında erişim sağlar.
+    // Memoize article map for performance
     const articleMap = useMemo(() => {
         const map = new Map();
         articles.forEach(article => {
@@ -41,12 +40,12 @@ function ArticlesPage({ articles }) {
         return map;
     }, [articles]);
 
-    // Seçili makaleleri durumlarına göre filtrelemek için
+    // Memoize filtered articles for performance
     const selectedArticlesByStatus = useMemo(() => {
         const ham = [];
         const cevrildi = [];
         selectedArticles.forEach(id => {
-            const article = articleMap.get(id); // Haritadan anında bul
+            const article = articleMap.get(id);
             if (article) {
                 if (article.durum === 'ham') {
                     ham.push(id);
@@ -183,6 +182,19 @@ function ArticlesPage({ articles }) {
         });
     };
 
+    const getStatusStyle = (durum) => {
+        switch (durum) {
+            case 'ham':
+                return { backgroundColor: '#ffc107', color: 'black' };
+            case 'çevrildi':
+                return { backgroundColor: '#17a2b8', color: 'white' };
+            case 'optimize edildi': // GÜNCELLENDİ: 'optimize edildi' durumu için stil
+                return { backgroundColor: '#28a745', color: 'white' };
+            default:
+                return { backgroundColor: '#6c757d', color: 'white' };
+        }
+    };
+
     const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
     return (
@@ -260,8 +272,7 @@ function ArticlesPage({ articles }) {
                                 <td style={{ padding: '12px', minWidth: '300px' }}>{article.title}</td>
                                 <td style={{ padding: '12px' }}>
                                     <span style={{ 
-                                        backgroundColor: article.durum === 'ham' ? '#ffc107' : (article.durum === 'çevrildi' ? '#17a2b8' : '#28a745'), 
-                                        color: article.durum === 'ham' ? 'black' : 'white', 
+                                        ...getStatusStyle(article.durum),
                                         padding: '3px 8px', borderRadius: '12px', 
                                         fontSize: '12px', fontWeight: 'bold' 
                                     }}>
