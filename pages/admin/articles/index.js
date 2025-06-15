@@ -1,6 +1,6 @@
 // pages/admin/articles/index.js
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { db } from '../../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
@@ -27,9 +27,23 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
 function ArticlesPage({ articles }) {
     const router = useRouter();
     const [selectedArticles, setSelectedArticles] = useState([]);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false); // Genel işlem durumu
     const [translatingId, setTranslatingId] = useState(null);
     const [modal, setModal] = useState({ isOpen: false });
+
+    // Seçili makaleleri durumlarına göre filtrelemek için
+    const selectedArticlesByStatus = useMemo(() => {
+        const ham = selectedArticles.filter(id => {
+            const article = articles.find(a => a.id === id);
+            return article && article.durum === 'ham';
+        });
+        const cevrildi = selectedArticles.filter(id => {
+            const article = articles.find(a => a.id === id);
+            return article && article.durum === 'çevrildi';
+        });
+        return { ham, cevrildi };
+    }, [selectedArticles, articles]);
+
 
     const handleSelectArticle = (id) => {
         setSelectedArticles(prevSelected =>
@@ -59,9 +73,8 @@ function ArticlesPage({ articles }) {
         });
     };
 
-    // GÜNCELLENDİ: `toast.promise` yerine manuel toast kontrolü
     const confirmDelete = () => {
-        setIsDeleting(true);
+        setIsProcessing(true);
         setModal({ isOpen: false });
 
         const toastId = toast.loading('Seçilen makaleler siliniyor...');
@@ -85,12 +98,11 @@ function ArticlesPage({ articles }) {
             toast.error(`Hata: ${err.message}`, { id: toastId });
         })
         .finally(() => {
-            setIsDeleting(false);
+            setIsProcessing(false);
             setSelectedArticles([]);
         });
     };
     
-    // GÜNCELLENDİ: `toast.promise` yerine manuel toast kontrolü
     const handleTranslate = (articleId) => {
         setTranslatingId(articleId);
         
@@ -118,23 +130,55 @@ function ArticlesPage({ articles }) {
             setTranslatingId(null);
         });
     };
+    
+    // YENİ: Toplu İşlem Fonksiyonu
+    const handleBatchAction = async (actionType) => {
+        const isTranslate = actionType === 'translate';
+        const targetIds = isTranslate ? selectedArticlesByStatus.ham : selectedArticlesByStatus.cevrildi;
+        const apiEndpoint = isTranslate ? '/api/batch-translate' : '/api/batch-optimize';
+        const loadingMessage = isTranslate ? 'Seçilen makaleler çevriliyor...' : 'Seçilen makaleler optimize ediliyor...';
+        
+        if (targetIds.length === 0) {
+            toast.error(`Bu işlem için uygun durumda makale seçilmedi.`);
+            return;
+        }
+
+        setIsProcessing(true);
+        const toastId = toast.loading(loadingMessage);
+
+        fetch(apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: targetIds }),
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(err => { throw new Error(err.error || 'Toplu işlem sırasında bir hata oluştu.')});
+            }
+            return res.json();
+        })
+        .then((result) => {
+            toast.success(result.message, { id: toastId, duration: 6000 });
+            router.reload();
+        })
+        .catch((err) => {
+             toast.error(`Hata: ${err.message}`, { id: toastId });
+        })
+        .finally(() => {
+            setIsProcessing(false);
+            setSelectedArticles([]);
+        });
+    };
 
     const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: 'auto' }}>
-            {/* GÜNCELLENDİ: Toaster bileşenine stil ve süre ayarları eklendi */}
             <Toaster 
                 position="bottom-right"
                 toastOptions={{
-                    style: {
-                        fontSize: '16px',
-                        padding: '16px',
-                        minWidth: '250px',
-                    },
-                    error: {
-                        duration: 5000, // Hata mesajları 5 saniye kalsın
-                    }
+                    style: { fontSize: '16px', padding: '16px', minWidth: '250px' },
+                    error: { duration: 5000 }
                 }}
             />
             <ConfirmModal
@@ -144,30 +188,41 @@ function ArticlesPage({ articles }) {
                 onConfirm={confirmDelete}
                 onCancel={() => setModal({ isOpen: false })}
             />
-            {/* Gerekli CSS Stilleri */}
             <style jsx global>{`
                 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
                 .modal-content { background: white; padding: 25px; border-radius: 8px; text-align: center; width: 90%; max-width: 400px; }
                 .modal-actions { margin-top: 20px; display: flex; justify-content: center; gap: 15px; }
                 .button-danger { background-color: #e74c3c; color: white; border:none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; }
                 .button-secondary { background-color: #bdc3c7; color: #2c3e50; border:none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; }
+                button:disabled { cursor: not-allowed; opacity: 0.6; }
             `}</style>
             
             <a href="/admin" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Ana Yönetim Paneline Geri Dön</a>
             <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale Yönetimi</h1>
             <p>Veritabanında bulunan toplam makale sayısı: {articles.length}</p>
             
-            <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* YENİ: Toplu İşlem Butonları */}
+            <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                <button 
+                    onClick={() => handleBatchAction('translate')}
+                    disabled={isProcessing || selectedArticlesByStatus.ham.length === 0}
+                    style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}
+                >
+                    {`Seçilenleri Çevir (${selectedArticlesByStatus.ham.length})`}
+                </button>
+                 <button 
+                    onClick={() => handleBatchAction('optimize')}
+                    disabled={isProcessing || selectedArticlesByStatus.cevrildi.length === 0}
+                    style={{ backgroundColor: '#6f42c1', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer' }}
+                >
+                    {`Seçilenleri Optimize Et (${selectedArticlesByStatus.cevrildi.length})`}
+                </button>
                 <button 
                     onClick={handleDeleteClick} 
-                    disabled={isDeleting || selectedArticles.length === 0}
-                    style={{ 
-                        backgroundColor: selectedArticles.length > 0 ? '#dc3545' : '#6c757d',
-                        color: 'white', border: 'none', padding: '10px 15px',
-                        borderRadius: '5px', cursor: 'pointer'
-                    }}
+                    disabled={isProcessing || selectedArticles.length === 0}
+                    style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer', marginLeft: 'auto' }}
                 >
-                    {isDeleting ? 'Siliniyor...' : `Seçilenleri Sil (${selectedArticles.length})`}
+                    {`Seçilenleri Sil (${selectedArticles.length})`}
                 </button>
             </div>
 
@@ -194,7 +249,7 @@ function ArticlesPage({ articles }) {
                                 <td style={{ padding: '12px' }}>
                                     <span style={{ 
                                         backgroundColor: article.durum === 'ham' ? '#ffc107' : (article.durum === 'çevrildi' ? '#17a2b8' : '#28a745'), 
-                                        color: 'white', 
+                                        color: article.durum === 'ham' ? 'black' : 'white', 
                                         padding: '3px 8px', borderRadius: '12px', 
                                         fontSize: '12px', fontWeight: 'bold' 
                                     }}>
@@ -206,7 +261,7 @@ function ArticlesPage({ articles }) {
                                     {article.durum === 'ham' && (
                                         <button 
                                             onClick={() => handleTranslate(article.id)}
-                                            disabled={translatingId === article.id}
+                                            disabled={translatingId === article.id || isProcessing}
                                             style={{ padding: '5px 10px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px' }}
                                         >
                                             {translatingId === article.id ? 'Çevriliyor...' : 'Türkçeye Çevir'}
