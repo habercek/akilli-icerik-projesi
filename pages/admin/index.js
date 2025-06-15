@@ -10,11 +10,11 @@ function AdminPage({ rssKaynaklari }) {
   const [newRssUrl, setNewRssUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-
-  // --- YENİ EKLENEN KISIM BAŞLANGIÇ ---
   const [isFetching, setIsFetching] = useState(false);
   const [fetchMessage, setFetchMessage] = useState('');
-  // --- YENİ EKLENEN KISIM BİTİŞ ---
+  
+  // --- YENİ EKLENEN KISIM: Silme durumunu tutmak için ---
+  const [deletingUrl, setDeletingUrl] = useState(null);
 
   const handleAddRss = async (e) => {
     e.preventDefault();
@@ -38,32 +38,47 @@ function AdminPage({ rssKaynaklari }) {
     }
   };
 
-  // --- YENİ EKLENEN FONKSİYON BAŞLANGIÇ ---
   const handleFetchNews = async () => {
     setIsFetching(true);
     setFetchMessage('Haberler çekiliyor, lütfen bekleyin...');
     try {
-      const response = await fetch('/api/fetch-news', {
-        method: 'POST',
-      });
+      const response = await fetch('/api/fetch-news', { method: 'POST' });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || 'Haberler çekilirken bir hata oluştu.');
       }
-      setFetchMessage(result.message); // API'den gelen başarı mesajını göster
+      setFetchMessage(result.message);
     } catch (err) {
       setFetchMessage(`Hata: ${err.message}`);
     } finally {
       setIsFetching(false);
     }
   };
-  // --- YENİ EKLENEN FONKSİYON BİTİŞ ---
+
+  // --- YENİ EKLENEN FONKSİYON: Silme İşlemi ---
+  const handleDeleteRss = async (urlToDelete) => {
+    setDeletingUrl(urlToDelete); // Hangi URL'nin silindiğini state'e ata
+    try {
+      const response = await fetch('/api/delete-rss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlToDelete }),
+      });
+       if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Silme sırasında bir hata oluştu.');
+      }
+      router.reload(); // Başarılı olunca sayfayı yenile
+    } catch (err) {
+      setError(err.message); // Hata varsa göster
+      setDeletingUrl(null); // Hata durumunda silme durumunu sıfırla
+    }
+  }
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: 'auto' }}>
       <h1>Yönetim Paneli</h1>
       
-      {/* --- YENİ EKLENEN BÖLÜM BAŞLANGIÇ --- */}
       <div style={{ border: '1px solid #28a745', padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f0fff4' }}>
         <h2>Otomasyon</h2>
         <button onClick={handleFetchNews} disabled={isFetching} style={{ padding: '10px 15px', fontSize: '16px', cursor: 'pointer' }}>
@@ -71,14 +86,29 @@ function AdminPage({ rssKaynaklari }) {
         </button>
         {fetchMessage && <p style={{ marginTop: '10px' }}>{fetchMessage}</p>}
       </div>
-      {/* --- YENİ EKLENEN BÖLÜM BİTİŞ --- */}
 
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
         <h2>Kayıtlı RSS Kaynakları</h2>
         {rssKaynaklari && rssKaynaklari.length > 0 ? (
-          <ul>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
             {rssKaynaklari.map((kaynak, index) => (
-              <li key={index} style={{ marginBottom: '5px' }}>{kaynak}</li>
+              <li key={index} style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ wordBreak: 'break-all', marginRight: '15px' }}>{kaynak}</span>
+                <button 
+                  onClick={() => handleDeleteRss(kaynak)} 
+                  disabled={deletingUrl === kaynak} // Sadece tıklanan butonu pasif yap
+                  style={{ 
+                    padding: '5px 10px', 
+                    backgroundColor: '#dc3545', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '5px',
+                    cursor: 'pointer' 
+                  }}
+                >
+                  {deletingUrl === kaynak ? 'Siliniyor...' : 'Sil'}
+                </button>
+              </li>
             ))}
           </ul>
         ) : (
