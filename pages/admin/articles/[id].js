@@ -1,124 +1,144 @@
 // pages/admin/articles/[id].js
-
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { db } from '../../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast';
 
-function OptimizationResults({ data }) {
-    if (!data) return null;
-    const renderSubheadings = () => {
-        if (Array.isArray(data.subheadings)) {
-            return (<ul>{data.subheadings.map((sh, index) => <li key={index}>{sh}</li>)}</ul>);
-        }
-        return <p>{data.subheadings}</p>;
-    };
-    return (
-        <div className="results-container">
-            <h3>Optimizasyon Sonuçları</h3>
-            <div className="result-item"><strong>H1 Başlığı:</strong><p>{data.h1_title}</p></div>
-            <div className="result-item"><strong>Meta Açıklaması:</strong><p>{data.meta_description}</p></div>
-            <div className="result-item"><strong>Özet:</strong><p>{data.summary}</p></div>
-            <div className="result-item"><strong>Alt Başlık Önerileri:</strong>{renderSubheadings()}</div>
-        </div>
-    );
-}
+// Küçük bir JSON görüntüleyici bileşeni
+const JsonViewer = ({ data }) => (
+    <pre style={{
+        background: '#282c34',
+        color: '#abb2bf',
+        padding: '15px',
+        borderRadius: '8px',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-all',
+        fontSize: '14px',
+        lineHeight: '1.5'
+    }}>
+        {JSON.stringify(data, null, 2)}
+    </pre>
+);
 
-function EditArticlePage({ articleData }) {
+export default function ArticleDetailPage({ article }) {
     const router = useRouter();
-    const [translatedContent, setTranslatedContent] = useState(articleData.ceviri_icerik || '');
-    const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
-    const [viewMode, setViewMode] = useState('preview');
     const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optimizeMessage, setOptimizeMessage] = useState('');
-    const [optimizedData, setOptimizedData] = useState(articleData.seo_data || null);
 
-    const handleSave = async (e) => {
-        e.preventDefault();
-        setIsSaving(true); setMessage(''); setError('');
-        try {
-            const { id } = router.query;
-            const response = await fetch('/api/update-article', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, content: translatedContent }),
-            });
-            if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'Makale güncellenirken bir hata oluştu.'); }
-            setMessage('Değişiklikler başarıyla kaydedildi!');
-        } catch (err) { setError(`Hata: ${err.message}`); } finally { setIsSaving(false); }
-    };
+    if (!article) {
+        return <div>Makale yükleniyor veya bulunamadı...</div>;
+    }
 
     const handleOptimize = async () => {
         setIsOptimizing(true);
-        setOptimizeMessage('Optimizasyon başlatıldı, yapay zeka düşünürken lütfen bekleyin...');
-        setOptimizedData(null); setError('');
+        const toastId = toast.loading('Makale zenginleştiriliyor ve optimize ediliyor...');
+
         try {
-            const { id } = router.query;
-            // GÜNCELLENDİ: API adresi yeni dosya adıyla değiştirildi
-            const response = await fetch('/api/run-gemini-optimizer', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, content: translatedContent }),
+            const res = await fetch('/api/run-gemini-optimizer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: article.id }),
             });
-            const result = await response.json();
-            if (!response.ok) { throw new Error(result.error || 'Bilinmeyen bir optimizasyon hatası oluştu.'); }
-            setOptimizeMessage(result.message);
-            setOptimizedData(result.data);
-        } catch (err) { setOptimizeMessage(`Hata: ${err.message}`); } finally { setIsOptimizing(false); }
+
+            const result = await res.json();
+
+            if (!res.ok) {
+                throw new Error(result.error || 'Bilinmeyen bir hata oluştu.');
+            }
+
+            toast.success('Başarıyla tamamlandı! Sayfa yenileniyor...', { id: toastId });
+            setTimeout(() => router.reload(), 2000);
+
+        } catch (error) {
+            toast.error(`Hata: ${error.message}`, { id: toastId });
+            setIsOptimizing(false);
+        }
     };
 
-    if (!articleData) { return <div>Makale yükleniyor veya bulunamadı...</div>; }
+    const seo = article.seo_data || {};
 
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-             <style jsx global>{`
-                .article-preview img { display: block !important; float: none !important; margin: 0 auto 1rem auto !important; max-width: 100%; height: auto; }
-                .results-container { margin-top: 25px; padding: 20px; border: 1px solid #1abc9c; border-radius: 8px; background-color: #f0fdfa; }
-                .result-item { margin-bottom: 15px; } .result-item strong { display: block; margin-bottom: 5px; color: #16a085; }
-                .result-item p, .result-item ul { margin: 0; } .result-item ul { padding-left: 20px; }
+        <>
+            <Toaster position="bottom-right" />
+            <style jsx global>{`
+                body { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+                .container { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .header { border-bottom: 1px solid #ddd; padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .back-link { color: #007bff; text-decoration: none; }
+                .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+                .content-area h2 { border-left: 4px solid #007bff; padding-left: 10px; }
+                .content-display { border: 1px solid #e9ecef; padding: 20px; border-radius: 5px; background: #f8f9fa; }
+                .summary-box { background: #e9f7fd; border: 1px solid #bce8f1; border-left: 5px solid #31708f; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+                .summary-box h3 { margin-top: 0; color: #31708f; }
+                .faq-section { background: #fef8e4; border: 1px solid #fbeebc; border-left: 5px solid #8a6d3b; padding: 15px; margin-top: 20px; border-radius: 5px; }
+                .faq-section h4 { color: #8a6d3b; }
+                .seo-card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
             `}</style>
-            <a href="/admin/articles" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Makale Listesine Geri Dön</a>
-            <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale İncele ve Düzenle</h1>
-            <h3 style={{ fontWeight: 'normal' }}>{articleData.title}</h3>
-            <div>
-                <form onSubmit={handleSave}>
-                    <h2>Çevrilmiş Metin</h2>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <button type="button" onClick={() => setViewMode('preview')} disabled={viewMode === 'preview'} style={{ padding: '8px 12px', cursor: 'pointer', border: '1px solid #ccc', backgroundColor: viewMode === 'preview' ? '#007bff' : 'white', color: viewMode === 'preview' ? 'white' : 'black' }}>Canlı Önizleme</button>
-                        <button type="button" onClick={() => setViewMode('html')} disabled={viewMode === 'html'} style={{ marginLeft: '0.5rem', padding: '8px 12px', cursor: 'pointer', border: '1px solid #ccc', backgroundColor: viewMode === 'html' ? '#007bff' : 'white', color: viewMode === 'html' ? 'white' : 'black' }}>HTML Kodunu Düzenle</button>
+            <div className="container">
+                <div className="header">
+                    <div>
+                        <a href="/admin/articles" className="back-link">&larr; Makale Listesine Dön</a>
+                        <h1>{article.title}</h1>
+                        <p><strong>Durum:</strong> {article.durum}</p>
                     </div>
-                    {viewMode === 'preview' ? (
-                        <div className="article-preview" style={{ width: '100%', height: '424px', border: '1px solid #ccc', borderRadius: '5px', padding: '10px', backgroundColor: '#f9f9f9', overflowY: 'auto' }} dangerouslySetInnerHTML={{ __html: translatedContent }} />
-                    ) : (
-                        <textarea value={translatedContent} onChange={(e) => setTranslatedContent(e.target.value)} style={{ width: '100%', height: '424px', padding: '10px', border: '1px solid #007bff', borderRadius: '5px', fontFamily: 'monospace' }} />
+                    {article.durum !== 'zenginleştirildi' && (
+                         <button onClick={handleOptimize} disabled={isOptimizing}>
+                            {isOptimizing ? 'İşlem Sürüyor...' : 'Zenginleştir ve Optimize Et'}
+                        </button>
                     )}
-                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button type="submit" disabled={isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>{isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}</button>
-                        <button type="button" onClick={handleOptimize} disabled={isOptimizing || isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>{isOptimizing ? 'Optimize Ediliyor...' : 'Yapay Zeka ile Optimize Et →'}</button>
+                </div>
+
+                <div className="main-grid">
+                    <div className="content-area">
+                        <h2>İçerik Önizlemesi</h2>
+                        <div
+                            className="content-display"
+                            dangerouslySetInnerHTML={{ __html: article.zenginlestirilmis_icerik || article.ceviri_icerik || article.content || '<p>İçerik bulunamadı.</p>' }}
+                        />
                     </div>
-                    {message && <p style={{ marginTop: '10px', color: 'green' }}>{message}</p>}
-                    {error && <p style={{ marginTop: '10px', color: 'red' }}>{error}</p>}
-                </form>
-                {optimizeMessage && <p style={{ marginTop: '15px', fontWeight: 'bold' }}>{optimizeMessage}</p>}
-                <OptimizationResults data={optimizedData} />
+                    <div className="sidebar">
+                        <h2>SEO Verileri</h2>
+                        <div className="seo-card">
+                           <p><strong>H1 Başlığı:</strong> {seo.h1_title || 'N/A'}</p>
+                           <p><strong>Meta Açıklaması:</strong> {seo.meta_description || 'N/A'}</p>
+                           <p><strong>Anahtar Kelimeler:</strong> {(seo.keywords || []).join(', ') || 'N/A'}</p>
+                           <p><strong>Önerilen Alt Başlıklar:</strong> {(seo.subheadings || []).join(', ') || 'N/A'}</p>
+                           <hr/>
+                           <h3>Yapısal Veri (Schema)</h3>
+                           <JsonViewer data={seo.schema_markup || { message: "Henüz oluşturulmadı."}} />
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
 export async function getServerSideProps(context) {
     try {
         const { id } = context.params;
-        const docRef = doc(db, 'articles', id);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) { return { notFound: true }; }
+        const articleRef = doc(db, 'articles', id);
+        const docSnap = await getDoc(articleRef);
+
+        if (!docSnap.exists()) {
+            return { notFound: true };
+        }
+
         const data = docSnap.data();
-        const articleData = { id: docSnap.id, title: data.title || 'Başlık Yok', content: data.content || '', ceviri_icerik: data.ceviri_icerik || '', seo_data: data.seo_data || null };
-        return { props: { articleData } };
+        // Firestore'dan gelen timestamp'leri serileştirilebilir formata dönüştür
+        const article = {
+            id: docSnap.id,
+            title: data.title || null,
+            content: data.content || null,
+            ceviri_icerik: data.ceviri_icerik || null,
+            zenginlestirilmis_icerik: data.zenginlestirilmis_icerik || null,
+            seo_data: data.seo_data || null,
+            durum: data.durum || null,
+        };
+
+        return { props: { article } };
     } catch (error) {
-        console.error("Makale detayı çekerken hata:", error);
-        return { props: { articleData: null } };
+        console.error("Makale detayı alınırken hata:", error);
+        return { props: { article: null } };
     }
 }
-
-export default EditArticlePage;
