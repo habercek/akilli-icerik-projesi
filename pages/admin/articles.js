@@ -11,6 +11,10 @@ function ArticlesPage({ articles }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState(null);
 
+  // --- YENİ EKLENEN KISIM ---
+  const [translatingId, setTranslatingId] = useState(null);
+  // --- BİTİŞ ---
+
   const handleSelectArticle = (id) => {
     setSelectedArticles(prevSelected =>
       prevSelected.includes(id)
@@ -55,6 +59,29 @@ function ArticlesPage({ articles }) {
     }
   };
   
+  // --- YENİ EKLENEN FONKSİYON: Çeviri İşlemi ---
+  const handleTranslate = async (articleId) => {
+    setTranslatingId(articleId);
+    setError(null);
+    try {
+        const response = await fetch('/api/translate-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: articleId }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Çeviri sırasında bir hata oluştu.');
+        }
+        alert('Makale başarıyla çevrildi!');
+        router.reload(); // Sayfayı yenileyerek güncel durumu göster
+    } catch (err) {
+        alert(`Hata: ${err.message}`);
+        setTranslatingId(null);
+    }
+  };
+  // --- BİTİŞ ---
+
   const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
   return (
@@ -63,7 +90,7 @@ function ArticlesPage({ articles }) {
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale Yönetimi</h1>
       <p>Veritabanında bulunan toplam makale sayısı: {articles.length}</p>
       
-      <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
+      <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
          <button 
             onClick={handleDeleteSelected} 
             disabled={isDeleting || selectedArticles.length === 0}
@@ -88,8 +115,7 @@ function ArticlesPage({ articles }) {
               <th style={{ padding: '12px', textAlign: 'left' }}>Başlık</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Durum</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Eklenme Tarihi</th>
-              {/* --- YENİ SÜTUN BAŞLIĞI --- */}
-              <th style={{ padding: '12px', textAlign: 'left' }}>İşlemler</th>
+              <th style={{ padding: '12px', textAlign: 'center' }}>İşlemler</th>
             </tr>
           </thead>
           <tbody>
@@ -101,8 +127,8 @@ function ArticlesPage({ articles }) {
                 <td style={{ padding: '12px', minWidth: '300px' }}>{article.title}</td>
                 <td style={{ padding: '12px' }}>
                     <span style={{ 
-                        backgroundColor: article.durum === 'ham' ? '#ffc107' : '#28a745', 
-                        color: article.durum === 'ham' ? 'black' : 'white', 
+                        backgroundColor: article.durum === 'ham' ? '#ffc107' : (article.durum === 'çevrildi' ? '#17a2b8' : '#28a745'), 
+                        color: 'white', 
                         padding: '3px 8px', borderRadius: '12px', 
                         fontSize: '12px', fontWeight: 'bold' 
                     }}>
@@ -110,11 +136,14 @@ function ArticlesPage({ articles }) {
                     </span>
                 </td>
                 <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>{new Date(article.eklenmeTarihi).toLocaleString('tr-TR')}</td>
-                {/* --- YENİ SÜTUN İÇERİĞİ --- */}
-                <td style={{ padding: '12px' }}>
+                <td style={{ padding: '12px', textAlign: 'center' }}>
                   {article.durum === 'ham' && (
-                    <button disabled style={{ padding: '5px 10px', fontSize: '12px' }}>
-                        Türkçeye Çevir
+                    <button 
+                        onClick={() => handleTranslate(article.id)}
+                        disabled={translatingId === article.id}
+                        style={{ padding: '5px 10px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px' }}
+                    >
+                        {translatingId === article.id ? 'Çevriliyor...' : 'Türkçeye Çevir'}
                     </button>
                   )}
                 </td>
