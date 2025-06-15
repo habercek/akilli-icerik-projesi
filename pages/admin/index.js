@@ -12,8 +12,6 @@ function AdminPage({ rssKaynaklari }) {
   const [error, setError] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchMessage, setFetchMessage] = useState('');
-  
-  // --- YENİ EKLENEN KISIM: Silme durumunu tutmak için ---
   const [deletingUrl, setDeletingUrl] = useState(null);
 
   const handleAddRss = async (e) => {
@@ -55,9 +53,8 @@ function AdminPage({ rssKaynaklari }) {
     }
   };
 
-  // --- YENİ EKLENEN FONKSİYON: Silme İşlemi ---
   const handleDeleteRss = async (urlToDelete) => {
-    setDeletingUrl(urlToDelete); // Hangi URL'nin silindiğini state'e ata
+    setDeletingUrl(urlToDelete);
     try {
       const response = await fetch('/api/delete-rss', {
         method: 'POST',
@@ -68,16 +65,25 @@ function AdminPage({ rssKaynaklari }) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Silme sırasında bir hata oluştu.');
       }
-      router.reload(); // Başarılı olunca sayfayı yenile
+      router.reload();
     } catch (err) {
-      setError(err.message); // Hata varsa göster
-      setDeletingUrl(null); // Hata durumunda silme durumunu sıfırla
+      setError(err.message);
+      setDeletingUrl(null);
     }
   }
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: 'auto' }}>
       <h1>Yönetim Paneli</h1>
+      
+      {/* --- YENİ EKLENEN BÖLÜM --- */}
+      <div style={{ border: '1px solid #007bff', padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f0f8ff' }}>
+        <h2>Yönetim Sayfaları</h2>
+        <a href="/admin/articles" style={{ textDecoration: 'none', color: 'white', backgroundColor: '#007bff', padding: '10px 15px', borderRadius: '5px', display: 'inline-block', fontSize: '16px' }}>
+          Makale Yönetimine Git &rarr;
+        </a>
+      </div>
+      {/* --- BİTİŞ --- */}
       
       <div style={{ border: '1px solid #28a745', padding: '15px', borderRadius: '8px', marginBottom: '20px', backgroundColor: '#f0fff4' }}>
         <h2>Otomasyon</h2>
@@ -89,31 +95,16 @@ function AdminPage({ rssKaynaklari }) {
 
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
         <h2>Kayıtlı RSS Kaynakları</h2>
-        {rssKaynaklari && rssKaynaklari.length > 0 ? (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {rssKaynaklari.map((kaynak, index) => (
-              <li key={index} style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ wordBreak: 'break-all', marginRight: '15px' }}>{kaynak}</span>
-                <button 
-                  onClick={() => handleDeleteRss(kaynak)} 
-                  disabled={deletingUrl === kaynak} // Sadece tıklanan butonu pasif yap
-                  style={{ 
-                    padding: '5px 10px', 
-                    backgroundColor: '#dc3545', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '5px',
-                    cursor: 'pointer' 
-                  }}
-                >
-                  {deletingUrl === kaynak ? 'Siliniyor...' : 'Sil'}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Gösterilecek RSS kaynağı bulunamadı.</p>
-        )}
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {rssKaynaklari.map((kaynak, index) => (
+            <li key={index} style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ wordBreak: 'break-all', marginRight: '15px' }}>{kaynak}</span>
+              <button onClick={() => handleDeleteRss(kaynak)} disabled={deletingUrl === kaynak} style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                {deletingUrl === kaynak ? 'Siliniyor...' : 'Sil'}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
