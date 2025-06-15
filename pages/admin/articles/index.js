@@ -188,7 +188,7 @@ function ArticlesPage({ articles }) {
                 return { backgroundColor: '#ffc107', color: 'black' };
             case 'çevrildi':
                 return { backgroundColor: '#17a2b8', color: 'white' };
-            case 'optimize edildi': // GÜNCELLENDİ: 'optimize edildi' durumu için stil
+            case 'optimize edildi':
                 return { backgroundColor: '#28a745', color: 'white' };
             default:
                 return { backgroundColor: '#6c757d', color: 'white' };
@@ -271,10 +271,14 @@ function ArticlesPage({ articles }) {
                                 </td>
                                 <td style={{ padding: '12px', minWidth: '300px' }}>{article.title}</td>
                                 <td style={{ padding: '12px' }}>
+                                    {/* GÜNCELLENDİ: Etiket stiline white-space eklendi */}
                                     <span style={{ 
                                         ...getStatusStyle(article.durum),
-                                        padding: '3px 8px', borderRadius: '12px', 
-                                        fontSize: '12px', fontWeight: 'bold' 
+                                        padding: '3px 8px', 
+                                        borderRadius: '12px', 
+                                        fontSize: '12px', 
+                                        fontWeight: 'bold',
+                                        whiteSpace: 'nowrap'
                                     }}>
                                         {article.durum}
                                     </span>
