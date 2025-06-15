@@ -11,9 +11,7 @@ function EditArticlePage({ articleData }) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  // Önizleme ve HTML modu arasında geçiş yapmak için state
-  const [viewMode, setViewMode] = useState('preview'); // 'preview' veya 'html'
+  const [viewMode, setViewMode] = useState('preview');
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -45,7 +43,7 @@ function EditArticlePage({ articleData }) {
 
   const handleOptimize = () => {
       alert("Yapay Zeka Optimizasyon fonksiyonu bir sonraki adımda eklenecektir.");
-  }
+  };
 
   if (!articleData) {
     return <div>Makale yükleniyor veya bulunamadı...</div>;
@@ -56,12 +54,9 @@ function EditArticlePage({ articleData }) {
       <a href="/admin/articles" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Makale Listesine Geri Dön</a>
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale İncele ve Düzenle</h1>
       <h3 style={{ fontWeight: 'normal' }}>{articleData.title}</h3>
-
-      {/* GÜNCELLENDİ: Sadece çeviri bölümü bırakıldı ve grid yapısı kaldırıldı */}
       <div>
         <form onSubmit={handleSave}>
           <h2>Çevrilmiş Metin</h2>
-          
           <div style={{ marginBottom: '1rem' }}>
             <button 
               type="button"
@@ -93,7 +88,6 @@ function EditArticlePage({ articleData }) {
               HTML Kodunu Düzenle
             </button>
           </div>
-
           {viewMode === 'preview' ? (
             <div
               style={{ 
@@ -121,7 +115,6 @@ function EditArticlePage({ articleData }) {
               }}
             />
           )}
-          
           <div style={{marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <button type="submit" disabled={isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
                 {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
@@ -153,5 +146,22 @@ export async function getServerSideProps(context) {
     }
 
     const data = docSnap.data();
-    //
-  
+    const articleData = {
+      id: docSnap.id,
+      title: data.title || 'Başlık Yok',
+      content: data.content || '',
+      ceviri_icerik: data.ceviri_icerik || ''
+    };
+
+    return {
+      props: {
+        articleData,
+      },
+    };
+  } catch (error) {
+    console.error("Makale detayı çekerken hata:", error);
+    return { props: { articleData: null } };
+  }
+}
+
+export default EditArticlePage;
