@@ -51,6 +51,17 @@ function EditArticlePage({ articleData }) {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+      {/* YENİ: Resim düzenini düzeltmek için özel CSS stilleri */}
+      <style jsx global>{`
+        .article-preview img {
+          display: block !important;
+          float: none !important;
+          margin: 0 auto 1rem auto !important;
+          max-width: 100%;
+          height: auto;
+        }
+      `}</style>
+
       <a href="/admin/articles" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Makale Listesine Geri Dön</a>
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale İncele ve Düzenle</h1>
       <h3 style={{ fontWeight: 'normal' }}>{articleData.title}</h3>
@@ -90,6 +101,8 @@ function EditArticlePage({ articleData }) {
           </div>
           {viewMode === 'preview' ? (
             <div
+              // YENİ: CSS'in hedefleyebilmesi için bir class adı eklendi
+              className="article-preview"
               style={{ 
                 width: '100%', 
                 height: '424px', 
