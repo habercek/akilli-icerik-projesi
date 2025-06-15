@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { db } from '../../../firebase'; // ../../'dan ../../../'e dikkat
+import { db } from '../../../firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 function EditArticlePage({ articleData }) {
@@ -10,27 +10,43 @@ function EditArticlePage({ articleData }) {
   const [translatedContent, setTranslatedContent] = useState(articleData.ceviri_icerik || '');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
+  // DEĞİŞİKLİKLERİ KAYDETME FONKSİYONU
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     setMessage('');
+    setError('');
 
     try {
-      // Bu API'yi bir sonraki adımda oluşturacağız
-      alert("Kaydetme fonksiyonu henüz aktif değil.");
-      // const { id } = router.query;
-      // await updateDoc(doc(db, 'articles', id), {
-      //   ceviri_icerik: translatedContent
-      // });
-      // setMessage('Değişiklikler başarıyla kaydedildi!');
+      const { id } = router.query;
+      const response = await fetch('/api/update-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, content: translatedContent }),
+      });
       
-    } catch (error) {
-      setMessage(`Hata: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Makale güncellenirken bir hata oluştu.');
+      }
+      
+      setMessage('Değişiklikler başarıyla kaydedildi!');
+      
+    } catch (err) {
+      setError(`Hata: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
   };
+
+  // --- YENİ EKLENEN KISIM: YAPAY ZEKA OPTİMİZASYONU ---
+  const handleOptimize = () => {
+      alert("Yapay Zeka Optimizasyon fonksiyonu bir sonraki adımda eklenecektir.");
+  }
+  // --- BİTİŞ ---
+
 
   if (!articleData) {
     return <div>Makale yükleniyor veya bulunamadı...</div>;
@@ -59,10 +75,21 @@ function EditArticlePage({ articleData }) {
               onChange={(e) => setTranslatedContent(e.target.value)}
               style={{ width: '100%', height: '400px', padding: '10px', border: '1px solid #007bff', borderRadius: '5px' }}
             />
-            <button type="submit" disabled={isSaving} style={{ marginTop: '10px', padding: '10px 20px', fontSize: '16px' }}>
-              {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-            </button>
-            {message && <p style={{ marginTop: '10px' }}>{message}</p>}
+            <div style={{marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <button type="submit" disabled={isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                  {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                </button>
+                {/* --- YENİ EKLENEN BUTON --- */}
+                <button 
+                    type="button" // Formu göndermemesi için type'ını button yapıyoruz
+                    onClick={handleOptimize} 
+                    style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                >
+                  Yapay Zeka ile Optimize Et &rarr;
+                </button>
+            </div>
+            {message && <p style={{ marginTop: '10px', color: 'green' }}>{message}</p>}
+            {error && <p style={{ marginTop: '10px', color: 'red' }}>{error}</p>}
           </form>
         </div>
       </div>
@@ -72,16 +99,15 @@ function EditArticlePage({ articleData }) {
 
 export async function getServerSideProps(context) {
   try {
-    const { id } = context.params; // Dinamik URL'den [id] parametresini al
+    const { id } = context.params;
     const docRef = doc(db, 'articles', id);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
-      return { notFound: true }; // Makale bulunamazsa 404 sayfası göster
+      return { notFound: true };
     }
 
     const data = docSnap.data();
-    // Sayfaya prop olarak gönderilecek veriyi güvenli hale getiriyoruz
     const articleData = {
       id: docSnap.id,
       title: data.title || 'Başlık Yok',
