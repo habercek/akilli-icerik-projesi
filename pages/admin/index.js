@@ -1,18 +1,46 @@
+// pages/admin/index.js
+
 import { useState } from 'react';
+import { useRouter } from 'next/router'; // Sayfayı yenilemek için
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 function AdminPage({ rssKaynaklari }) {
+  const router = useRouter(); // Router hook'unu kullanıma al
   const [newRssUrl, setNewRssUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    alert(`Form gönderildi, ama henüz bir işlem yapmıyor. Gönderilen URL: ${newRssUrl}`);
-    setNewRssUrl('');
+  // Form gönderme fonksiyonunu güncelliyoruz
+  const handleFormSubmit = async (e) => {
+    e.preventDefault(); // Sayfanın yeniden yüklenmesini engelle
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/add-rss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newRssUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Bir hata oluştu.');
+      }
+      
+      // Başarılı olursa input'u temizle ve sayfayı yenileyerek güncel listeyi göster
+      setNewRssUrl('');
+      router.reload();
+
+    } catch (err) {
+      setError(err.message);
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
       <h1>Yönetim Paneli</h1>
       
       <div style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
@@ -20,7 +48,7 @@ function AdminPage({ rssKaynaklari }) {
         {rssKaynaklari && rssKaynaklari.length > 0 ? (
           <ul>
             {rssKaynaklari.map((kaynak, index) => (
-              <li key={index}>{kaynak}</li>
+              <li key={index} style={{ marginBottom: '5px' }}>{kaynak}</li>
             ))}
           </ul>
         ) : (
@@ -39,17 +67,33 @@ function AdminPage({ rssKaynaklari }) {
             required
             style={{ width: '300px', padding: '8px', marginRight: '10px' }}
           />
-          <button type="submit" style={{ padding: '8px 12px' }}>
-            Ekle
+          <button type="submit" disabled={isSubmitting} style={{ padding: '8px 12px' }}>
+            {isSubmitting ? 'Ekleniyor...' : 'Ekle'}
           </button>
+          {error && <p style={{ color: 'red', marginTop: '10px' }}>Hata: {error}</p>}
         </form>
       </div>
-
     </div>
   );
 }
 
+// Sunucu Tarafı Veri Çekme Fonksiyonu (Değişiklik yok)
 export async function getServerSideProps() {
   try {
     const siteRef = doc(db, 'sites', 'test-sitesi');
-    const docSnap =
+    const docSnap = await getDoc(siteRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const rssKaynaklari = data.rssKaynaklari || [];
+      return { props: { rssKaynaklari } };
+    } else {
+      return { props: { rssKaynaklari: [] } };
+    }
+  } catch (error) {
+    console.error("Firebase'den veri çekerken hata:", error);
+    return { props: { rssKaynaklari: [] } };
+  }
+}
+
+export default AdminPage;
