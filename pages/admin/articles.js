@@ -1,27 +1,108 @@
 // pages/admin/articles.js
 
+import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { db } from '../../firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
-// Bu, makaleleri listeleyen sayfa bileşenidir.
 function ArticlesPage({ articles }) {
+  const router = useRouter();
+  const [selectedArticles, setSelectedArticles] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Tek bir makaleyi seçme/seçimi kaldırma fonksiyonu
+  const handleSelectArticle = (id) => {
+    setSelectedArticles(prevSelected =>
+      prevSelected.includes(id)
+        ? prevSelected.filter(articleId => articleId !== id)
+        : [...prevSelected, id]
+    );
+  };
+
+  // Tüm makaleleri seçme/seçimi kaldırma fonksiyonu
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedArticles(articles.map(article => article.id));
+    } else {
+      setSelectedArticles([]);
+    }
+  };
+
+  // Seçilen makaleleri silme fonksiyonu
+  const handleDeleteSelected = async () => {
+    if (selectedArticles.length === 0) {
+      alert('Lütfen silmek için en az bir makale seçin.');
+      return;
+    }
+
+    // Kullanıcıdan son bir onay alalım
+    const confirmDelete = confirm(`${selectedArticles.length} makaleyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`);
+    if (!confirmDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/delete-articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedArticles }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Silme sırasında bir hata oluştu.');
+      }
+      
+      alert('Seçilen makaleler başarıyla silindi.');
+      router.reload(); // Sayfayı yenileyerek güncel listeyi göster
+
+    } catch (err) {
+      setError(err.message);
+      setIsDeleting(false);
+    }
+  };
+  
+  const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
+
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: 'auto' }}>
       <a href="/admin" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Ana Yönetim Paneline Geri Dön</a>
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale Yönetimi</h1>
       <p>Veritabanında bulunan toplam makale sayısı: {articles.length}</p>
       
-      {/* Gelecekte buraya fonksiyonel silme butonu ve diğer işlemler eklenecek */}
-      <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '8px' }}>
-         <button disabled>Seçilenleri Sil</button>
-         <span style={{ marginLeft: '15px', fontSize: '14px', color: '#6c757d' }}>(Silme işlevi bir sonraki adımda eklenecektir)</span>
+      <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
+         <button 
+            onClick={handleDeleteSelected} 
+            disabled={isDeleting || selectedArticles.length === 0}
+            style={{ 
+                backgroundColor: selectedArticles.length > 0 ? '#dc3545' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                padding: '10px 15px',
+                borderRadius: '5px',
+                cursor: 'pointer'
+            }}
+          >
+            {isDeleting ? 'Siliniyor...' : `Seçilenleri Sil (${selectedArticles.length})`}
+         </button>
+         {error && <p style={{ color: 'red', marginLeft: '15px' }}>Hata: {error}</p>}
       </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #ccc', backgroundColor: '#f8f9fa' }}>
-              <th style={{ padding: '12px', textAlign: 'left' }}><input type="checkbox" disabled /></th>
+              <th style={{ padding: '12px', textAlign: 'left' }}>
+                <input 
+                  type="checkbox" 
+                  checked={allSelected}
+                  onChange={handleSelectAll}
+                  style={{ width: '18px', height: '18px' }}
+                />
+              </th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Başlık</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Durum</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Eklenme Tarihi</th>
@@ -29,8 +110,15 @@ function ArticlesPage({ articles }) {
           </thead>
           <tbody>
             {articles.map((article) => (
-              <tr key={article.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '12px' }}><input type="checkbox" disabled /></td>
+              <tr key={article.id} style={{ borderBottom: '1px solid #eee', backgroundColor: selectedArticles.includes(article.id) ? '#fff3cd' : 'transparent' }}>
+                <td style={{ padding: '12px' }}>
+                  <input 
+                    type="checkbox"
+                    checked={selectedArticles.includes(article.id)}
+                    onChange={() => handleSelectArticle(article.id)}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                </td>
                 <td style={{ padding: '12px' }}>{article.title}</td>
                 <td style={{ padding: '12px' }}><span style={{ backgroundColor: '#ffc107', color: 'black', padding: '3px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>{article.durum}</span></td>
                 <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>{new Date(article.eklenmeTarihi).toLocaleString('tr-TR')}</td>
@@ -48,38 +136,24 @@ function ArticlesPage({ articles }) {
   );
 }
 
-// Sunucu tarafında veritabanından tüm makaleleri çekeriz.
 export async function getServerSideProps() {
   try {
     const articlesRef = collection(db, 'articles');
     const querySnapshot = await getDocs(articlesRef);
-
     const articles = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
             id: doc.id,
             title: data.title || 'Başlık Yok',
             durum: data.durum || 'Bilinmiyor',
-            // Tarih nesnesini serileştirilebilir formata çeviriyoruz.
             eklenmeTarihi: data.eklenmeTarihi.toDate().toISOString(), 
         };
     });
-
-    // Son eklenenler en üstte görünsün diye kendi içinde sırala
     articles.sort((a, b) => new Date(b.eklenmeTarihi) - new Date(a.eklenmeTarihi));
-
-    return {
-      props: {
-        articles,
-      },
-    };
+    return { props: { articles } };
   } catch (error) {
     console.error("Makaleleri çekerken hata:", error);
-    return {
-      props: {
-        articles: [],
-      },
-    };
+    return { props: { articles: [] } };
   }
 }
 
