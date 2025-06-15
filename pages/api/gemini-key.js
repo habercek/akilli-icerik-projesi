@@ -1,24 +1,27 @@
 // pages/api/add-gemini-key.js
 
 import { db } from '../../firebase';
-import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 export default async function handler(req, res) {
+  // Sadece POST isteklerine izin ver
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   try {
     const { key } = req.body;
 
+    // Gelen verinin geçerli olup olmadığını kontrol et
     if (!key || typeof key !== 'string' || key.trim() === '') {
       return res.status(400).json({ error: 'Geçerli bir API anahtarı girilmelidir.' });
     }
 
     const docRef = doc(db, 'sites', 'test-sitesi');
     
-    // Atomik olarak yeni anahtarı 'gemini_keys' dizisine ekle.
-    // arrayUnion, anahtar zaten dizide varsa eklemez, bu da kopyaları önler.
+    // Yeni anahtarı 'gemini_keys' dizisine atomik olarak ekle.
+    // arrayUnion, anahtar zaten dizide varsa mükerrer kayıt oluşturmaz.
     await updateDoc(docRef, {
       gemini_keys: arrayUnion(key.trim())
     });
