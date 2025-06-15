@@ -10,10 +10,7 @@ function ArticlesPage({ articles }) {
   const [selectedArticles, setSelectedArticles] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState(null);
-
-  // --- YENİ EKLENEN KISIM ---
   const [translatingId, setTranslatingId] = useState(null);
-  // --- BİTİŞ ---
 
   const handleSelectArticle = (id) => {
     setSelectedArticles(prevSelected =>
@@ -59,7 +56,6 @@ function ArticlesPage({ articles }) {
     }
   };
   
-  // --- YENİ EKLENEN FONKSİYON: Çeviri İşlemi ---
   const handleTranslate = async (articleId) => {
     setTranslatingId(articleId);
     setError(null);
@@ -74,13 +70,12 @@ function ArticlesPage({ articles }) {
             throw new Error(errorData.error || 'Çeviri sırasında bir hata oluştu.');
         }
         alert('Makale başarıyla çevrildi!');
-        router.reload(); // Sayfayı yenileyerek güncel durumu göster
+        router.reload();
     } catch (err) {
         alert(`Hata: ${err.message}`);
         setTranslatingId(null);
     }
   };
-  // --- BİTİŞ ---
 
   const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
@@ -146,6 +141,15 @@ function ArticlesPage({ articles }) {
                         {translatingId === article.id ? 'Çevriliyor...' : 'Türkçeye Çevir'}
                     </button>
                   )}
+                  {/* --- YENİ EKLENEN KISIM --- */}
+                  {article.durum === 'çevrildi' && (
+                    <a 
+                        href={`/admin/articles/edit/${article.id}`}
+                        style={{ padding: '5px 10px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '5px', textDecoration: 'none' }}
+                    >
+                        İncele ve Düzenle
+                    </a>
+                  )}
                 </td>
               </tr>
             ))}
@@ -171,15 +175,4 @@ export async function getServerSideProps() {
             id: doc.id,
             title: data.title || 'Başlık Yok',
             durum: data.durum || 'Bilinmiyor',
-            eklenmeTarihi: data.eklenmeTarihi.toDate().toISOString(), 
-        };
-    });
-    articles.sort((a, b) => new Date(b.eklenmeTarihi) - new Date(a.eklenmeTarihi));
-    return { props: { articles } };
-  } catch (error) {
-    console.error("Makaleleri çekerken hata:", error);
-    return { props: { articles: [] } };
-  }
-}
-
-export default ArticlesPage;
+            eklenmeTarihi: data.eklenme
