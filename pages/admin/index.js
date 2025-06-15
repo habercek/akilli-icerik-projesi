@@ -3,15 +3,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import toast, { Toaster } from 'react-hot-toast'; // YENİ: Toast kütüphanesini içeri aktar
 
-// --- ICONS (SVG) ---
+// --- SİMGELER (SVG) ---
 const IconRss = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 5c7.73 0 14 6.27 14 14M6 13a7 7 0 017 7m-7-14v0a1 1 0 112 0 1 1 0 01-2 0z" /></svg>;
 const IconArticle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
 const IconKey = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H5v-2H3v-2H1.258l.017-.006a6 6 0 015.743-7.743z" /></svg>;
 const IconGemini = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4m10 4l2 2-2 2m-3-4l-2 2 2 2m7-12l-2 2-2-2m-3 4l2-2-2-2" /></svg>;
 const IconMenu = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>;
 
-// --- MODAL COMPONENT ---
+// --- MODAL BİLEŞENİ ---
 function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
     if (!isOpen) return null;
     return (
@@ -28,8 +29,8 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
     );
 }
 
-// --- API KEY MANAGER COMPONENT ---
-function ApiKeyManager({ title, description, placeholder, type, initialApiKeys = [], onAction, isSubmitting, deletingKey, error }) {
+// --- API ANAHTAR YÖNETİM BİLEŞENİ ---
+function ApiKeyManager({ title, description, placeholder, type, initialApiKeys = [], onAction, isSubmitting, deletingKey }) {
     const [newApiKey, setNewApiKey] = useState('');
     const [modal, setModal] = useState({ isOpen: false, keyToDelete: null });
 
@@ -77,7 +78,6 @@ function ApiKeyManager({ title, description, placeholder, type, initialApiKeys =
                     {isSubmitting ? 'Ekleniyor...' : 'Yeni Anahtar Ekle'}
                 </button>
             </form>
-            {error && <p className="error-message">Hata: {error}</p>}
             <h4>Kayıtlı Anahtarlar:</h4>
             {initialApiKeys.length > 0 ? (
                 <ul className="item-list">
@@ -97,15 +97,19 @@ function ApiKeyManager({ title, description, placeholder, type, initialApiKeys =
     );
 }
 
-// --- RSS MANAGER COMPONENT ---
-function RssManager({ initialRssUrls = [], onAddRss, onDeleteRss, onFetchNews, isSubmittingRss, deletingUrl, isFetching, fetchMessage }) {
+// --- RSS YÖNETİM BİLEŞENİ ---
+function RssManager({ initialRssUrls = [], onAddRss, onDeleteRss, onFetchNews }) {
     const [newRssUrl, setNewRssUrl] = useState('');
     const [modal, setModal] = useState({ isOpen: false, urlToDelete: null });
+    const [isSubmittingRss, setIsSubmittingRss] = useState(false);
+    const [deletingUrl, setDeletingUrl] = useState(null);
     
-    const handleAddSubmit = (e) => {
+    const handleAddSubmit = async (e) => {
         e.preventDefault();
         if(!newRssUrl.trim()) return;
-        onAddRss(newRssUrl);
+        setIsSubmittingRss(true);
+        await onAddRss(newRssUrl);
+        setIsSubmittingRss(false);
         setNewRssUrl('');
     };
 
@@ -113,8 +117,10 @@ function RssManager({ initialRssUrls = [], onAddRss, onDeleteRss, onFetchNews, i
         setModal({ isOpen: true, urlToDelete: url });
     };
 
-    const confirmDelete = () => {
-        onDeleteRss(modal.urlToDelete);
+    const confirmDelete = async () => {
+        setDeletingUrl(modal.urlToDelete);
+        await onDeleteRss(modal.urlToDelete);
+        setDeletingUrl(null);
         setModal({ isOpen: false, urlToDelete: null });
     };
 
@@ -130,10 +136,9 @@ function RssManager({ initialRssUrls = [], onAddRss, onDeleteRss, onFetchNews, i
             <h2>Otomasyon ve RSS Yönetimi</h2>
             <div className="subsection">
                 <h4>Otomasyon</h4>
-                <button onClick={onFetchNews} disabled={isFetching}>
-                    {isFetching ? 'İşlem Sürüyor...' : 'Tüm Kaynaklardan Haberleri Çek'}
+                <button onClick={onFetchNews}>
+                    Tüm Kaynaklardan Haberleri Çek
                 </button>
-                {fetchMessage && <p className="description" style={{marginTop: '10px'}}>{fetchMessage}</p>}
             </div>
             <div className="subsection">
                 <h4>Yeni Kaynak Ekle</h4>
@@ -165,83 +170,83 @@ function RssManager({ initialRssUrls = [], onAddRss, onDeleteRss, onFetchNews, i
     );
 }
 
-// --- MAIN ADMIN PAGE COMPONENT ---
+// --- ANA YÖNETİM SAYFASI ---
 function AdminPage({ siteData }) {
     const router = useRouter();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [activeView, setActiveView] = useState('rss');
-
-    const [isSubmittingRss, setIsSubmittingRss] = useState(false);
-    const [deletingUrl, setDeletingUrl] = useState(null);
-    const [isFetching, setIsFetching] = useState(false);
-    const [fetchMessage, setFetchMessage] = useState('');
     
-    // Unified state for API key operations
+    // API State'leri
     const [isSubmittingKey, setIsSubmittingKey] = useState(false);
     const [deletingKey, setDeletingKey] = useState(null);
-    const [apiKeyError, setApiKeyError] = useState(null);
 
-    // --- Functions ---
+    // --- Fonksiyonlar ---
     const handleAddRss = async (url) => {
-        setIsSubmittingRss(true);
-        try {
-            const response = await fetch('/api/add-rss', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }),
-            });
-            if (!response.ok) throw new Error('RSS eklenemedi.');
-            router.reload();
-        } catch (err) { 
-            // Using a simple alert for now as per original code, but a modal would be better
-            alert(err.message); 
-            setIsSubmittingRss(false); 
-        }
+        const promise = fetch('/api/add-rss', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }),
+        }).then(res => {
+            if (!res.ok) throw new Error('RSS eklenemedi.');
+            router.reload(); // Sayfayı yeniden yükleyerek güncel listeyi göster
+            return res.json();
+        });
+        toast.promise(promise, {
+            loading: 'RSS kaynağı ekleniyor...',
+            success: 'Başarıyla eklendi!',
+            error: (err) => `Hata: ${err.message}`,
+        });
     };
 
     const handleDeleteRss = async (url) => {
-        setDeletingUrl(url);
-        try {
-            const response = await fetch('/api/delete-rss', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }),
-            });
-            if (!response.ok) throw new Error('RSS silinemedi.');
-            router.reload();
-        } catch (err) { 
-            alert(err.message); 
-            setDeletingUrl(null); 
-        }
+        const promise = fetch('/api/delete-rss', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }),
+        }).then(res => {
+            if (!res.ok) throw new Error('RSS silinemedi.');
+             router.reload();
+            return res.json();
+        });
+
+        toast.promise(promise, {
+            loading: 'RSS kaynağı siliniyor...',
+            success: 'Başarıyla silindi!',
+            error: (err) => `Hata: ${err.message}`,
+        });
     };
 
-    const handleFetchNews = async () => {
-        setIsFetching(true); setFetchMessage('Haberler çekiliyor, lütfen bekleyin...');
-        try {
-            const response = await fetch('/api/fetch-news', { method: 'POST' });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Haberler çekilirken bir hata oluştu.');
-            setFetchMessage(result.message);
-        } catch (err) { setFetchMessage(`Hata: ${err.message}`); } finally { setIsFetching(false); }
+    const handleFetchNews = () => {
+        const promise = fetch('/api/fetch-news', { method: 'POST' })
+            .then(async (res) => {
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Haberler çekilirken bir hata oluştu.');
+                return result.message;
+            });
+
+        toast.promise(promise, {
+            loading: 'Tüm kaynaklardan haberler çekiliyor...',
+            success: (message) => message,
+            error: (err) => `Hata: ${err.message}`,
+        });
     };
     
-    // Unified function to handle both adding and deleting keys
     const handleKeyAction = async (action, type, key) => {
         if (action === 'add') setIsSubmittingKey(true);
         if (action === 'delete') setDeletingKey(key);
-        setApiKeyError(null);
-
-        try {
-            const response = await fetch('/api/manage-api-keys', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, type, key }),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Bilinmeyen bir API hatası.');
+        
+        const promise = fetch('/api/manage-api-keys', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, type, key }),
+        }).then(res => {
+            if (!res.ok) throw res.json(); // Hata durumunda JSON gövdesini fırlat
             router.reload();
-        } catch (err) { 
-            setApiKeyError(err.message); 
-        } finally {
+            return res.json();
+        });
+
+        toast.promise(promise, {
+            loading: 'İşlem yürütülüyor...',
+            success: (result) => result.message,
+            error: (errPromise) => errPromise.then(err => err.error || 'Bilinmeyen bir hata oluştu.'),
+        }).finally(() => {
             if (action === 'add') setIsSubmittingKey(false);
             if (action === 'delete') setDeletingKey(null);
-        }
+        });
     };
 
     const menuItems = [
@@ -253,6 +258,8 @@ function AdminPage({ siteData }) {
 
     return (
         <>
+            {/* YENİ: Toast bildirimlerinin ekranda gösterileceği yer */}
+            <Toaster position="bottom-right" reverseOrder={false} />
             <style jsx global>{`
                 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif; background-color: #f4f7f6; }
                 .admin-layout { display: flex; height: 100vh; }
@@ -308,33 +315,13 @@ function AdminPage({ siteData }) {
                 <main className="main-content">
                     <h1>Kontrol Paneli</h1>
                      {activeView === 'rss' && (
-                        <RssManager initialRssUrls={siteData.rssKaynaklari} onAddRss={handleAddRss} onDeleteRss={handleDeleteRss} onFetchNews={handleFetchNews} isSubmittingRss={isSubmittingRss} deletingUrl={deletingUrl} isFetching={isFetching} fetchMessage={fetchMessage} />
+                        <RssManager initialRssUrls={siteData.rssKaynaklari} onAddRss={handleAddRss} onDeleteRss={handleDeleteRss} onFetchNews={handleFetchNews} />
                     )}
                     {activeView === 'deepl' && (
-                         <ApiKeyManager
-                            type="deepl"
-                            title="API Anahtar Yönetimi (DeepL)"
-                            description="Kullanılabilir DeepL API anahtarlarını buraya ekleyin. Sistem, kota dolduğunda otomatik olarak bir sonrakine geçecektir."
-                            placeholder="Yeni DeepL API Anahtarını Yapıştırın"
-                            initialApiKeys={siteData.deeplKeys}
-                            onAction={handleKeyAction}
-                            isSubmitting={isSubmittingKey}
-                            deletingKey={deletingKey}
-                            error={apiKeyError}
-                        />
+                         <ApiKeyManager type="deepl" title="API Anahtar Yönetimi (DeepL)" description="Kullanılabilir DeepL API anahtarlarını buraya ekleyin. Sistem, kota dolduğunda otomatik olarak bir sonrakine geçecektir." placeholder="Yeni DeepL API Anahtarını Yapıştırın" initialApiKeys={siteData.deeplKeys} onAction={handleKeyAction} isSubmitting={isSubmittingKey} deletingKey={deletingKey} />
                     )}
                     {activeView === 'gemini' && (
-                        <ApiKeyManager
-                            type="gemini"
-                            title="API Anahtar Yönetimi (Gemini)"
-                            description="Kullanılabilir Gemini API anahtarlarını buraya ekleyin. Sistem, kota dolduğunda otomatik olarak bir sonrakine geçecektir."
-                            placeholder="Yeni Gemini API Anahtarını Yapıştırın"
-                            initialApiKeys={siteData.geminiKeys}
-                            onAction={handleKeyAction}
-                            isSubmitting={isSubmittingKey}
-                            deletingKey={deletingKey}
-                            error={apiKeyError}
-                        />
+                        <ApiKeyManager type="gemini" title="API Anahtar Yönetimi (Gemini)" description="Kullanılabilir Gemini API anahtarlarını buraya ekleyin. Sistem, kota dolduğunda otomatik olarak bir sonrakine geçecektir." placeholder="Yeni Gemini API Anahtarını Yapıştırın" initialApiKeys={siteData.geminiKeys} onAction={handleKeyAction} isSubmitting={isSubmittingKey} deletingKey={deletingKey} />
                     )}
                 </main>
             </div>
@@ -342,7 +329,7 @@ function AdminPage({ siteData }) {
     );
 }
 
-// --- DATA FETCHING FUNCTION ---
+// --- VERİ ÇEKME FONKSİYONU ---
 export async function getServerSideProps() {
     try {
         const siteRef = doc(db, 'sites', 'test-sitesi');
