@@ -1,18 +1,14 @@
-import { useState } from 'react'; // Formun durumunu tutmak için
+import { useState } from 'react';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-// Sayfa Bileşeni: Artık bir form içeriyor
 function AdminPage({ rssKaynaklari }) {
-  // Input alanına yazılan değeri saklamak için bir state tanımlıyoruz
   const [newRssUrl, setNewRssUrl] = useState('');
 
   const handleFormSubmit = (e) => {
-    e.preventDefault(); // Formun sayfayı yeniden yüklemesini engelle
-    // Şimdilik burada bir işlem yapmıyoruz.
-    // Bir sonraki adımda API'ye istek göndereceğiz.
+    e.preventDefault();
     alert(`Form gönderildi, ama henüz bir işlem yapmıyor. Gönderilen URL: ${newRssUrl}`);
-    setNewRssUrl(''); // Input alanını temizle
+    setNewRssUrl('');
   };
 
   return (
@@ -53,36 +49,7 @@ function AdminPage({ rssKaynaklari }) {
   );
 }
 
-// Sunucu Tarafı Veri Çekme Fonksiyonu (Değişiklik yok)
 export async function getServerSideProps() {
   try {
     const siteRef = doc(db, 'sites', 'test-sitesi');
-    const docSnap = await getDoc(siteRef);
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const rssKaynaklari = data.rssKaynaklari || [];
-      return {
-        props: {
-          rssKaynaklari,
-        },
-      };
-    } else {
-      console.log("'test-sitesi' belgesi bulunamadı.");
-      return {
-        props: {
-          rssKaynaklari: [],
-        },
-      };
-    }
-  } catch (error) {
-    console.error("Firebase'den veri çekerken hata:", error);
-    return {
-      props: {
-        rssKaynaklari: [],
-      },
-    };
-  }
-}
-
-export default AdminPage;
+    const docSnap =
