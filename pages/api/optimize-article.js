@@ -1,75 +1,93 @@
 // pages/api/optimize-article.js
 
 import { db } from '../../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// API anahtarını ortam değişkeninden al
-// Bu anahtarı bir sonraki adımda Vercel'e ekleyeceğiz.
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Yapay zeka için prompt'u (talimatı) oluşturan fonksiyon
 function getOptimisationPrompt(content) {
+  // HTML etiketlerini kaldırarak AI'a daha temiz bir metin sun
+  const cleanContent = content.replace(/<[^>]*>?/gm, ' ');
+
   return `Sen SEO ve içerik stratejisi konusunda uzman bir metin yazarısın. Görevin, aşağıda verilen makale metnini analiz ederek SEO için optimize edilmiş içerikler üretmek. Cevabını SADECE geçerli bir JSON formatında ver. JSON objesinden önce veya sonra hiçbir açıklama veya metin ekleme.
 
   JSON objesi şu anahtarlara sahip olmalıdır:
   - "h1_title": Makale için ilgi çekici, SEO uyumlu bir H1 başlığı.
-  - "subheadings": Makaleyi yapılandırmak için ilgili H2 ve H3 alt başlıklarını içeren bir string dizisi (array).
+  - "subheadings": Makaleyi yapılandırmak için en az 3 adet ilgili H2 ve H3 alt başlıklarını içeren bir string dizisi (array).
   - "summary": Makalenin kısa ve ilgi çekici bir özeti (2-3 cümle).
   - "meta_description": Arama motorları için optimize edilmiş, en fazla 160 karakterlik bir meta açıklaması.
 
   Analiz edilecek makale metni:
   ---
-  ${content}
+  ${cleanContent}
   ---
   `;
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  // API Anahtarının varlığını kontrol et
-  if (!process.env.GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY bulunamadı!');
-    return res.status(500).json({ error: 'Sunucu yapılandırmasında API anahtarı eksik.' });
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   try {
     const { id, content } = req.body;
-
     if (!id || !content) {
       return res.status(400).json({ error: 'Makale ID veya içerik eksik.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    const prompt = getOptimisationPrompt(content);
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // 1. Firebase'den tüm Gemini anahtarlarını çek
+    const siteRef = doc(db, 'sites', 'test-sitesi');
+    const docSnap = await getDoc(siteRef);
+    if (!docSnap.exists() || !docSnap.data().gemini_keys || docSnap.data().gemini_keys.length === 0) {
+        return res.status(404).json({ error: 'Veritabanında kayıtlı Gemini API anahtarı bulunamadı. Lütfen yönetim panelinden ekleyin.' });
+    }
+    const apiKeys = docSnap.data().gemini_keys;
 
-    let optimizedData;
-    try {
-      optimizedData = JSON.parse(text);
-    } catch (e) {
-      console.error('Gemini AI JSON Parse Hatası:', text);
-      throw new Error('Yapay zeka çıktısı anlaşılamadı. Lütfen tekrar deneyin.');
+    let successfulOptimization = false;
+    let optimizedData = null;
+    let firstError = null;
+
+    // 2. Çalışan bir anahtar bulana kadar sırayla dene
+    for (const key of apiKeys) {
+      try {
+        const genAI = new GoogleGenerativeAI(key);
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const prompt = getOptimisationPrompt(content);
+        
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        // Yanıtın JSON olup olmadığını kontrol et
+        optimizedData = JSON.parse(text);
+        successfulOptimization = true;
+        console.log(`Başarılı optimizasyon, anahtarın sonu: ...${key.slice(-4)}`);
+        break; // Çalışan bir anahtar bulununca döngüyü kır
+      } catch (error) {
+        console.warn(`Anahtar ...${key.slice(-4)} ile deneme başarısız:`, error.message);
+        if (!firstError) firstError = error.message; // İlk hatayı kaydet
+        continue; // Bir sonraki anahtara geç
+      }
     }
 
-    const docRef = doc(db, 'articles', id);
+    // 3. Hiçbir anahtar çalışmazsa hata döndür
+    if (!successfulOptimization) {
+        const errorMessage = `Tüm API anahtarları denendi fakat optimizasyon başarısız oldu. İlk alınan hata: ${firstError || 'Bilinmiyor'}`;
+        return res.status(500).json({ error: errorMessage });
+    }
 
-    // Firebase'deki makaleye yeni seo_data alanını ekle/güncelle
-    await updateDoc(docRef, {
+    // 4. Başarılı olursa, veriyi Firebase'e kaydet
+    const articleRef = doc(db, 'articles', id);
+    await updateDoc(articleRef, {
       seo_data: optimizedData,
-      optimized_at: new Date().toISOString(), // Optimizasyon zamanını kaydet
+      optimized_at: new Date().toISOString(),
     });
 
     res.status(200).json({ message: 'Makale başarıyla optimize edildi.', data: optimizedData });
 
   } catch (error) {
-    console.error('Optimizasyon API Hatası:', error);
-    res.status(500).json({ error: `Makale optimize edilirken bir hata oluştu: ${error.message}` });
+    console.error('Genel Optimizasyon API Hatası:', error);
+    res.status(500).json({ error: `Beklenmedik bir sunucu hatası oluştu: ${error.message}` });
   }
 }
