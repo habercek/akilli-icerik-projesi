@@ -4,20 +4,23 @@ import { db } from '../../firebase';
 import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
 
 export default async function handler(req, res) {
+  // Sadece POST isteklerine izin ver
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   try {
     const { key } = req.body;
 
+    // Gelen verinin geçerli olup olmadığını kontrol et
     if (!key || typeof key !== 'string' || key.trim() === '') {
       return res.status(400).json({ error: 'Silinecek API anahtarı belirtilmelidir.' });
     }
 
     const docRef = doc(db, 'sites', 'test-sitesi');
 
-    // Atomik olarak belirtilen anahtarı 'gemini_keys' dizisinden kaldır.
+    // Belirtilen anahtarı 'gemini_keys' dizisinden atomik olarak kaldır
     await updateDoc(docRef, {
       gemini_keys: arrayRemove(key.trim())
     });
