@@ -1,17 +1,61 @@
-export default function AdminPage() {
+import { db } from '../../firebase'; // Firebase bağlantı dosyamız
+import { doc, getDoc } from 'firebase/firestore';
+
+// Sayfa Bileşeni: Gelen veriyi ekranda gösterir.
+function AdminPage({ rssKaynaklari }) {
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '20px', backgroundColor: '#f0f0f0' }}>
+    <div>
       <h1>Yönetim Paneli</h1>
-      <p>Burası sadece bizim görebileceğimiz özel alanımız.</p>
-      
-      <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-        <h2>Yapılacaklar:</h2>
+      <h2>Kayıtlı RSS Kaynakları</h2>
+      {rssKaynaklari && rssKaynaklari.length > 0 ? (
         <ul>
-          <li>RSS Kaynaklarını listele</li>
-          <li>Yeni RSS Kaynağı ekleme formu</li>
-          <li>"Haberleri Çek" butonu</li>
+          {rssKaynaklari.map((kaynak, index) => (
+            <li key={index}>{kaynak}</li>
+          ))}
         </ul>
-      </div>
+      ) : (
+        <p>Gösterilecek RSS kaynağı bulunamadı.</p>
+      )}
     </div>
   );
 }
+
+// Sunucu Tarafı Veri Çekme Fonksiyonu
+export async function getServerSideProps() {
+  try {
+    // 'sites' koleksiyonundaki 'test-sitesi' belgesine referans ver
+    const siteRef = doc(db, 'sites', 'test-sitesi');
+    
+    // Belgeyi veritabanından çek
+    const docSnap = await getDoc(siteRef);
+
+    if (docSnap.exists()) {
+      // Belge varsa, içindeki rssKaynaklari dizisini al
+      const data = docSnap.data();
+      const rssKaynaklari = data.rssKaynaklari || []; // Eğer alan yoksa boş dizi ata
+      
+      return {
+        props: {
+          rssKaynaklari,
+        },
+      };
+    } else {
+      // Belge bulunamazsa
+      console.log("'test-sitesi' belgesi bulunamadı.");
+      return {
+        props: {
+          rssKaynaklari: [],
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Firebase'den veri çekerken hata:", error);
+    return {
+      props: {
+        rssKaynaklari: [], // Hata durumunda sayfaya boş veri gönder
+      },
+    };
+  }
+}
+
+export default AdminPage;
