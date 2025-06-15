@@ -51,13 +51,19 @@ export default async function handler(req, res) {
       try {
         const genAI = new GoogleGenerativeAI(key);
         
-        // GÜNCELLENDİ: Model adı 'gemini-pro' yerine daha güncel olan 'gemini-1.5-flash-latest' ile değiştirildi.
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        // GÜNCELLENDİ: Model adı, en güncel ve stabil versiyonlardan biri olan 'gemini-1.5-flash' ile değiştirildi.
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         
         const prompt = getOptimisationPrompt(content);
         
         const result = await model.generateContent(prompt);
         const response = await result.response;
+        
+        // Önce text() fonksiyonunun varlığını kontrol et
+        if (typeof response.text !== 'function') {
+            throw new Error('Yapay zeka yanıt formatı beklenmedik. text() fonksiyonu bulunamadı.');
+        }
+        
         const text = response.text();
 
         optimizedData = JSON.parse(text);
