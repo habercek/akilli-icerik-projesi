@@ -12,7 +12,7 @@ function EditArticlePage({ articleData }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // YENİ: Önizleme ve HTML modu arasında geçiş yapmak için state
+  // Önizleme ve HTML modu arasında geçiş yapmak için state
   const [viewMode, setViewMode] = useState('preview'); // 'preview' veya 'html'
 
   const handleSave = async (e) => {
@@ -57,100 +57,86 @@ function EditArticlePage({ articleData }) {
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale İncele ve Düzenle</h1>
       <h3 style={{ fontWeight: 'normal' }}>{articleData.title}</h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        <div>
-          <h2>Orijinal Metin (Ham)</h2>
-          <textarea
-            readOnly
-            value={articleData.content || 'Orijinal içerik bulunamadı.'}
-            style={{ width: '100%', height: '500px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px', backgroundColor: '#f8f9fa' }}
-          />
-        </div>
-        <div>
-          {/* GÜNCELLENDİ: Bu bölüm tamamen yenilendi */}
-          <form onSubmit={handleSave}>
-            <h2>Çevrilmiş Metin</h2>
-            
-            {/* YENİ: Mod Değiştirme Butonları */}
-            <div style={{ marginBottom: '1rem' }}>
-              <button 
-                type="button"
-                onClick={() => setViewMode('preview')} 
-                disabled={viewMode === 'preview'}
-                style={{
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  border: '1px solid #ccc',
-                  backgroundColor: viewMode === 'preview' ? '#007bff' : 'white',
-                  color: viewMode === 'preview' ? 'white' : 'black'
-                }}
-              >
-                Canlı Önizleme
-              </button>
-              <button 
-                type="button"
-                onClick={() => setViewMode('html')} 
-                disabled={viewMode === 'html'}
-                style={{
-                  marginLeft: '0.5rem',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  border: '1px solid #ccc',
-                  backgroundColor: viewMode === 'html' ? '#007bff' : 'white',
-                  color: viewMode === 'html' ? 'white' : 'black'
-                }}
-              >
-                HTML Kodunu Düzenle
-              </button>
-            </div>
+      {/* GÜNCELLENDİ: Sadece çeviri bölümü bırakıldı ve grid yapısı kaldırıldı */}
+      <div>
+        <form onSubmit={handleSave}>
+          <h2>Çevrilmiş Metin</h2>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <button 
+              type="button"
+              onClick={() => setViewMode('preview')} 
+              disabled={viewMode === 'preview'}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                border: '1px solid #ccc',
+                backgroundColor: viewMode === 'preview' ? '#007bff' : 'white',
+                color: viewMode === 'preview' ? 'white' : 'black'
+              }}
+            >
+              Canlı Önizleme
+            </button>
+            <button 
+              type="button"
+              onClick={() => setViewMode('html')} 
+              disabled={viewMode === 'html'}
+              style={{
+                marginLeft: '0.5rem',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                border: '1px solid #ccc',
+                backgroundColor: viewMode === 'html' ? '#007bff' : 'white',
+                color: viewMode === 'html' ? 'white' : 'black'
+              }}
+            >
+              HTML Kodunu Düzenle
+            </button>
+          </div>
 
-            {/* YENİ: Koşullu Görüntüleme Alanı */}
-            {viewMode === 'preview' ? (
-              // ÖNİZLEME MODU
-              <div
-                style={{ 
-                  width: '100%', 
-                  height: '424px', 
-                  border: '1px solid #ccc', 
-                  borderRadius: '5px',
-                  padding: '10px', 
-                  backgroundColor: '#f9f9f9',
-                  overflowY: 'auto' 
-                }}
-                dangerouslySetInnerHTML={{ __html: translatedContent }}
-              />
-            ) : (
-              // HTML KODU DÜZENLEME MODU
-              <textarea
-                value={translatedContent}
-                onChange={(e) => setTranslatedContent(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  height: '424px', 
-                  padding: '10px', 
-                  border: '1px solid #007bff', 
-                  borderRadius: '5px',
-                  fontFamily: 'monospace'
-                }}
-              />
-            )}
-            
-            <div style={{marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <button type="submit" disabled={isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-                  {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-                </button>
-                <button 
-                    type="button"
-                    onClick={handleOptimize} 
-                    style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-                >
-                  Yapay Zeka ile Optimize Et &rarr;
-                </button>
-            </div>
-            {message && <p style={{ marginTop: '10px', color: 'green' }}>{message}</p>}
-            {error && <p style={{ marginTop: '10px', color: 'red' }}>{error}</p>}
-          </form>
-        </div>
+          {viewMode === 'preview' ? (
+            <div
+              style={{ 
+                width: '100%', 
+                height: '424px', 
+                border: '1px solid #ccc', 
+                borderRadius: '5px',
+                padding: '10px', 
+                backgroundColor: '#f9f9f9',
+                overflowY: 'auto' 
+              }}
+              dangerouslySetInnerHTML={{ __html: translatedContent }}
+            />
+          ) : (
+            <textarea
+              value={translatedContent}
+              onChange={(e) => setTranslatedContent(e.target.value)}
+              style={{ 
+                width: '100%', 
+                height: '424px', 
+                padding: '10px', 
+                border: '1px solid #007bff', 
+                borderRadius: '5px',
+                fontFamily: 'monospace'
+              }}
+            />
+          )}
+          
+          <div style={{marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <button type="submit" disabled={isSaving} style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                {isSaving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+              </button>
+              <button 
+                  type="button"
+                  onClick={handleOptimize} 
+                  style={{ padding: '10px 20px', fontSize: '16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+              >
+                Yapay Zeka ile Optimize Et &rarr;
+              </button>
+          </div>
+          {message && <p style={{ marginTop: '10px', color: 'green' }}>{message}</p>}
+          {error && <p style={{ marginTop: '10px', color: 'red' }}>{error}</p>}
+        </form>
       </div>
     </div>
   );
@@ -167,22 +153,4 @@ export async function getServerSideProps(context) {
     }
 
     const data = docSnap.data();
-    const articleData = {
-      id: docSnap.id,
-      title: data.title || 'Başlık Yok',
-      content: data.content || '',
-      ceviri_icerik: data.ceviri_icerik || ''
-    };
-
-    return {
-      props: {
-        articleData,
-      },
-    };
-  } catch (error) {
-    console.error("Makale detayı çekerken hata:", error);
-    return { props: { articleData: null } };
-  }
-}
-
-export default EditArticlePage;
+    //
