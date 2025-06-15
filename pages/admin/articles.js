@@ -11,7 +11,6 @@ function ArticlesPage({ articles }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Tek bir makaleyi seçme/seçimi kaldırma fonksiyonu
   const handleSelectArticle = (id) => {
     setSelectedArticles(prevSelected =>
       prevSelected.includes(id)
@@ -20,7 +19,6 @@ function ArticlesPage({ articles }) {
     );
   };
 
-  // Tüm makaleleri seçme/seçimi kaldırma fonksiyonu
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       setSelectedArticles(articles.map(article => article.id));
@@ -29,18 +27,13 @@ function ArticlesPage({ articles }) {
     }
   };
 
-  // Seçilen makaleleri silme fonksiyonu
   const handleDeleteSelected = async () => {
     if (selectedArticles.length === 0) {
       alert('Lütfen silmek için en az bir makale seçin.');
       return;
     }
-
-    // Kullanıcıdan son bir onay alalım
     const confirmDelete = confirm(`${selectedArticles.length} makaleyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`);
-    if (!confirmDelete) {
-      return;
-    }
+    if (!confirmDelete) return;
 
     setIsDeleting(true);
     setError(null);
@@ -50,15 +43,12 @@ function ArticlesPage({ articles }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedArticles }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Silme sırasında bir hata oluştu.');
       }
-      
       alert('Seçilen makaleler başarıyla silindi.');
-      router.reload(); // Sayfayı yenileyerek güncel listeyi göster
-
+      router.reload();
     } catch (err) {
       setError(err.message);
       setIsDeleting(false);
@@ -68,7 +58,7 @@ function ArticlesPage({ articles }) {
   const allSelected = articles.length > 0 && selectedArticles.length === articles.length;
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1000px', margin: 'auto' }}>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: 'auto' }}>
       <a href="/admin" style={{ textDecoration: 'none', color: '#007bff' }}>&larr; Ana Yönetim Paneline Geri Dön</a>
       <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale Yönetimi</h1>
       <p>Veritabanında bulunan toplam makale sayısı: {articles.length}</p>
@@ -79,11 +69,8 @@ function ArticlesPage({ articles }) {
             disabled={isDeleting || selectedArticles.length === 0}
             style={{ 
                 backgroundColor: selectedArticles.length > 0 ? '#dc3545' : '#6c757d',
-                color: 'white',
-                border: 'none',
-                padding: '10px 15px',
-                borderRadius: '5px',
-                cursor: 'pointer'
+                color: 'white', border: 'none', padding: '10px 15px',
+                borderRadius: '5px', cursor: 'pointer'
             }}
           >
             {isDeleting ? 'Siliniyor...' : `Seçilenleri Sil (${selectedArticles.length})`}
@@ -96,37 +83,46 @@ function ArticlesPage({ articles }) {
           <thead>
             <tr style={{ borderBottom: '2px solid #ccc', backgroundColor: '#f8f9fa' }}>
               <th style={{ padding: '12px', textAlign: 'left' }}>
-                <input 
-                  type="checkbox" 
-                  checked={allSelected}
-                  onChange={handleSelectAll}
-                  style={{ width: '18px', height: '18px' }}
-                />
+                <input type="checkbox" checked={allSelected} onChange={handleSelectAll} style={{ width: '18px', height: '18px' }} />
               </th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Başlık</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Durum</th>
               <th style={{ padding: '12px', textAlign: 'left' }}>Eklenme Tarihi</th>
+              {/* --- YENİ SÜTUN BAŞLIĞI --- */}
+              <th style={{ padding: '12px', textAlign: 'left' }}>İşlemler</th>
             </tr>
           </thead>
           <tbody>
             {articles.map((article) => (
               <tr key={article.id} style={{ borderBottom: '1px solid #eee', backgroundColor: selectedArticles.includes(article.id) ? '#fff3cd' : 'transparent' }}>
                 <td style={{ padding: '12px' }}>
-                  <input 
-                    type="checkbox"
-                    checked={selectedArticles.includes(article.id)}
-                    onChange={() => handleSelectArticle(article.id)}
-                    style={{ width: '18px', height: '18px' }}
-                  />
+                  <input type="checkbox" checked={selectedArticles.includes(article.id)} onChange={() => handleSelectArticle(article.id)} style={{ width: '18px', height: '18px' }}/>
                 </td>
-                <td style={{ padding: '12px' }}>{article.title}</td>
-                <td style={{ padding: '12px' }}><span style={{ backgroundColor: '#ffc107', color: 'black', padding: '3px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>{article.durum}</span></td>
+                <td style={{ padding: '12px', minWidth: '300px' }}>{article.title}</td>
+                <td style={{ padding: '12px' }}>
+                    <span style={{ 
+                        backgroundColor: article.durum === 'ham' ? '#ffc107' : '#28a745', 
+                        color: article.durum === 'ham' ? 'black' : 'white', 
+                        padding: '3px 8px', borderRadius: '12px', 
+                        fontSize: '12px', fontWeight: 'bold' 
+                    }}>
+                        {article.durum}
+                    </span>
+                </td>
                 <td style={{ padding: '12px', fontSize: '14px', whiteSpace: 'nowrap' }}>{new Date(article.eklenmeTarihi).toLocaleString('tr-TR')}</td>
+                {/* --- YENİ SÜTUN İÇERİĞİ --- */}
+                <td style={{ padding: '12px' }}>
+                  {article.durum === 'ham' && (
+                    <button disabled style={{ padding: '5px 10px', fontSize: '12px' }}>
+                        Türkçeye Çevir
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
             {articles.length === 0 && (
               <tr>
-                <td colSpan="4" style={{ padding: '20px', textAlign: 'center' }}>Gösterilecek makale bulunamadı.</td>
+                <td colSpan="5" style={{ padding: '20px', textAlign: 'center' }}>Gösterilecek makale bulunamadı.</td>
               </tr>
             )}
           </tbody>
