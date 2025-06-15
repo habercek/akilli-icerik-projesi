@@ -27,22 +27,36 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
 function ArticlesPage({ articles }) {
     const router = useRouter();
     const [selectedArticles, setSelectedArticles] = useState([]);
-    const [isProcessing, setIsProcessing] = useState(false); // Genel işlem durumu
+    const [isProcessing, setIsProcessing] = useState(false);
     const [translatingId, setTranslatingId] = useState(null);
     const [modal, setModal] = useState({ isOpen: false });
 
+    // GÜNCELLENDİ: Performans iyileştirmesi için makaleleri bir haritaya yerleştir.
+    // Bu, makale durumlarını ararken tüm diziyi tekrar tekrar taramak yerine anında erişim sağlar.
+    const articleMap = useMemo(() => {
+        const map = new Map();
+        articles.forEach(article => {
+            map.set(article.id, article);
+        });
+        return map;
+    }, [articles]);
+
     // Seçili makaleleri durumlarına göre filtrelemek için
     const selectedArticlesByStatus = useMemo(() => {
-        const ham = selectedArticles.filter(id => {
-            const article = articles.find(a => a.id === id);
-            return article && article.durum === 'ham';
-        });
-        const cevrildi = selectedArticles.filter(id => {
-            const article = articles.find(a => a.id === id);
-            return article && article.durum === 'çevrildi';
+        const ham = [];
+        const cevrildi = [];
+        selectedArticles.forEach(id => {
+            const article = articleMap.get(id); // Haritadan anında bul
+            if (article) {
+                if (article.durum === 'ham') {
+                    ham.push(id);
+                } else if (article.durum === 'çevrildi') {
+                    cevrildi.push(id);
+                }
+            }
         });
         return { ham, cevrildi };
-    }, [selectedArticles, articles]);
+    }, [selectedArticles, articleMap]);
 
 
     const handleSelectArticle = (id) => {
@@ -131,7 +145,6 @@ function ArticlesPage({ articles }) {
         });
     };
     
-    // YENİ: Toplu İşlem Fonksiyonu
     const handleBatchAction = async (actionType) => {
         const isTranslate = actionType === 'translate';
         const targetIds = isTranslate ? selectedArticlesByStatus.ham : selectedArticlesByStatus.cevrildi;
@@ -201,7 +214,6 @@ function ArticlesPage({ articles }) {
             <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Makale Yönetimi</h1>
             <p>Veritabanında bulunan toplam makale sayısı: {articles.length}</p>
             
-            {/* YENİ: Toplu İşlem Butonları */}
             <div style={{ margin: '20px 0', padding: '15px', border: '1px solid #ccc', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                 <button 
                     onClick={() => handleBatchAction('translate')}
@@ -270,7 +282,17 @@ function ArticlesPage({ articles }) {
                                     {article.durum !== 'ham' && (
                                         <a 
                                             href={`/admin/articles/${article.id}`}
-                                            style={{ padding: '5px 10px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '5px', textDecoration: 'none' }}
+                                            style={{ 
+                                                display: 'inline-block',
+                                                padding: '5px 10px', 
+                                                fontSize: '12px', 
+                                                cursor: 'pointer', 
+                                                backgroundColor: '#17a2b8', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                borderRadius: '5px', 
+                                                textDecoration: 'none' 
+                                            }}
                                         >
                                             İncele ve Düzenle
                                         </a>
